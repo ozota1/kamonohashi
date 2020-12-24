@@ -6,6 +6,7 @@ const state = {
   total: 0,
   detail: {},
   dataTypes: [],
+  data: [],
 }
 
 // getters
@@ -25,10 +26,24 @@ const getters = {
   dataTypes(state) {
     return state.dataTypes
   },
+
+  data(state) {
+    return state.data
+  },
 }
 
 // actions
 const actions = {
+  async fetchData({ commit }, params) {
+    let response = await api.data.get(params)
+    let data = response.data
+    let total = response.headers['x-total-count']
+    commit('setData', { data })
+    // params.withTotal=trueの時は件数が取れているため設定
+    if (total !== undefined) {
+      commit('setTotal', parseInt(total))
+    }
+  },
   async fetchDataSets({ commit }, params) {
     let response = await api.datasets.get(params)
     let dataSets = response.data
@@ -77,6 +92,10 @@ const actions = {
 
 // mutations
 const mutations = {
+  setData(state, { data }) {
+    state.data = data
+  },
+
   setDataSets(state, { dataSets }) {
     state.dataSets = dataSets
   },

@@ -146,6 +146,7 @@ let api = {
     patch: gen.ApiV2DatasetsByIdPatch,
     getFiles: gen.ApiV2DataByIdFilesGet,
     getDatatypes: gen.ApiV2DatatypesGet,
+    getData: gen.ApiV2DataGet,
   },
 
   git: {
