@@ -66,6 +66,49 @@
           :data="dataList"
           style="text-align: left; display: inline-block "
         >
+          <span slot-scope="{ option }">
+            <el-row>
+              <el-col :span="4">{{ option.key }}</el-col>
+              <el-col :span="10">{{ option.name }}</el-col>
+              <el-col :span="10">{{ option.createdAt }}</el-col>
+            </el-row>
+          </span>
+          <el-row slot="left-footer" class="transfer-footer">
+            <el-pagination
+              ref="pagination1"
+              style="position: relative; top: 6px;"
+              layout="total,prev,next,jumper"
+              :page-size="viewInfo.currentPageSize"
+              :current-page="viewInfo.currentPage"
+              :total="viewInfo.filteredTotal"
+              @current-change="
+                page =>
+                  handleDataViewPaging(
+                    viewInfo.entryName,
+                    page,
+                    searchCondition,
+                  )
+              "
+            />
+          </el-row>
+          <el-row slot="right-footer" class="transfer-footer">
+            <el-pagination
+              ref="pagination2"
+              style="position: relative; top: 6px;"
+              layout="total,prev,next,jumper"
+              :page-size="viewInfo.currentPageSize"
+              :current-page="viewInfo.currentPage"
+              :total="viewInfo.filteredTotal"
+              @current-change="
+                page =>
+                  handleDataViewPaging(
+                    viewInfo.entryName,
+                    page,
+                    searchCondition,
+                  )
+              "
+            />
+          </el-row>
         </el-transfer>
       </div>
       <div v-else>
@@ -105,9 +148,36 @@ export default {
       type: String,
       default: null,
     },
+
+    viewInfo: {
+      type: Object,
+      default: () => {
+        return {
+          visible: true,
+          currentPage: 1,
+          currentPageSize: 100,
+          width: 330,
+          filter: null, // 検索条件
+        }
+      },
+    },
   },
   data() {
     return {
+      dataViewInfo: {},
+      defaultViewInfo: {
+        filteredTotal: 1,
+        visible: true,
+        currentPage: 1,
+        currentPageSize: 100,
+        width: 330,
+        filter: null, // 検索条件
+      },
+      pageStatus: {
+        currentPage: 1,
+        currentPageSize: 10,
+      },
+      searchCondition: {}, // 検索条件
       dataList: [],
       form: {
         name: '',
@@ -116,7 +186,6 @@ export default {
         entries: null,
         flatEntries: [],
       },
-
       title: '',
       isCreateDialog: false,
       isCopyCreation: false,
@@ -168,7 +237,7 @@ export default {
     }
   },
   computed: {
-    ...mapGetters(['data', 'detail', 'dataTypes']),
+    ...mapGetters(['data', 'detail', 'dataTypes', 'dataTotal']),
   },
   watch: {
     async $route() {
@@ -179,6 +248,32 @@ export default {
 
   async created() {
     await this.initialize()
+  },
+
+  beforeUpdate() {
+    //TODO デフォルト表示時に「1/〇ページ目へ」表示にならない　ページングを動かすと表示される
+    if (this.$refs.pagination1 != null) {
+      for (let i = 0; i < this.$refs.pagination1.$children.length; i++) {
+        if (
+          this.$refs.pagination1.$children[i].$el.className ===
+          'el-pagination__jump'
+        ) {
+          this.$refs.pagination1.$children[i].$el.lastChild.textContent =
+            '／' + this.getTotalPages(this.viewInfo) + 'ページ目へ'
+        }
+      }
+    }
+    if (this.$refs.pagination2 != null) {
+      for (let i = 0; i < this.$refs.pagination2.$children.length; i++) {
+        if (
+          this.$refs.pagination2.$children[i].$el.className ===
+          'el-pagination__jump'
+        ) {
+          this.$refs.pagination2.$children[i].$el.lastChild.textContent =
+            '／' + this.getTotalPages(this.viewInfo) + 'ページ目へ'
+        }
+      }
+    }
   },
 
   methods: {
@@ -193,6 +288,9 @@ export default {
     ]),
     ...mapMutations(['setDataTypes']),
 
+    handleDataViewPaging(entryName, page, searchCondition) {
+      this.retrieveDataList(page, searchCondition)
+    },
     async initialize() {
       let url = this.$route.path
       let type = url.split('/')[2] // ["", "dataset", "{type}", "{id}"]
@@ -227,27 +325,42 @@ export default {
           this.error = e
         }
       }
+      this.dataViewInfo = this.makeViewInfo({
+        colorIndex: 0,
+        showAssign: true,
+      })
       //Flat時のデータリスト取得
-      await this.retrieveDataList()
+      await this.retrieveDataList(1, '')
       // 編集時/コピー作成時は、既に登録されている情報を各項目を設定
       if (this.isEditDialog || this.isCopyCreation) {
         await this.retrieveData()
       }
     },
     filterMethod() {},
-    async retrieveDataList() {
+    async retrieveDataList(page, filter) {
       try {
-        await this.fetchData({})
+        let params = Object.assign({}, filter)
+        params.page = page
+        params.perPage = this.dataViewInfo.currentPageSize
+        params.withTotal = true
+
+        await this.fetchData(params)
+        this.dataViewInfo.filteredTotal = this.dataTotal
+
         this.dataList = []
         this.data.forEach(d => {
           this.dataList.push({
-            label: d.name,
+            name: d.name,
+            createdAt: d.createdAt,
             key: d.id,
           })
         })
       } catch (e) {
         this.error = e
       }
+    },
+    makeViewInfo(optionalProps) {
+      return Object.assign(optionalProps, this.defaultViewInfo)
     },
     async retrieveData() {
       this.form.entries = null
@@ -347,6 +460,19 @@ export default {
     handleShowData(id) {
       this.$router.push(`/data/edit/${id}`)
     },
+    getTotalPages() {
+      if (
+        this.viewInfo.filteredTotal !== undefined &&
+        this.viewInfo.filteredTotal !== 0 &&
+        this.viewInfo.filteredTotal > this.viewInfo.currentPageSize
+      ) {
+        return Math.ceil(
+          this.viewInfo.filteredTotal / this.viewInfo.currentPageSize,
+        )
+      } else {
+        return 1
+      }
+    },
   },
 }
 </script>
@@ -356,13 +482,6 @@ export default {
   .dialog /deep/ .el-dialog {
     width: 750px;
   }
-}
-.el-transfer {
-  width: 100%;
-}
-.el-transfer > :nth-child(3),
-.el-transfer > :nth-child(1) {
-  width: 40% !important;
 }
 
 @media screen and (min-width: 1500px) {
@@ -374,9 +493,26 @@ export default {
 .dialog /deep/ label {
   font-weight: bold !important;
 }
+.el-transfer {
+  width: 100%;
+}
+.el-transfer > :nth-child(3),
+.el-transfer > :nth-child(1) {
+  /*.el-transfer-panel で適用させたかったが何故かできない…*/
+  width: 40% !important;
+}
 
-.right-button-group {
-  padding-top: 0px;
-  text-align: right;
+div.el-transfer
+  > :nth-child(1)
+  > :nth-child(2)
+  > :nth-child(2)
+  > :nth-child(n + 1),
+div.el-transfer
+  > :nth-child(3)
+  > :nth-child(2)
+  > :nth-child(2)
+  > :nth-child(n + 1) {
+  /*label.el-checkbox で適用させたかったが何故かできない…*/
+  margin-right: 0px !important;
 }
 </style>

@@ -4,6 +4,7 @@ import api from '@/api/api'
 const state = {
   dataSets: [],
   total: 0,
+  dataTotal: 0,
   detail: {},
   dataTypes: [],
   data: [],
@@ -30,6 +31,10 @@ const getters = {
   data(state) {
     return state.data
   },
+
+  dataTotal(state) {
+    return state.dataTotal
+  },
 }
 
 // actions
@@ -41,7 +46,7 @@ const actions = {
     commit('setData', { data })
     // params.withTotal=trueの時は件数が取れているため設定
     if (total !== undefined) {
-      commit('setTotal', parseInt(total))
+      commit('setDataTotal', parseInt(total))
     }
   },
   async fetchDataSets({ commit }, params) {
@@ -103,7 +108,9 @@ const mutations = {
   setTotal(state, total) {
     state.total = total
   },
-
+  setDataTotal(state, total) {
+    state.dataTotal = total
+  },
   setDetail(state, { detail }) {
     state.detail = detail
   },
