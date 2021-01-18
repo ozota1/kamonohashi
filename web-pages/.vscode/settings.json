@@ -8,5 +8,6 @@
   "editor.formatOnSaveTimeout": 7500,
   "editor.tabSize": 2,
   "files.eol": "\n",
-  "vetur.format.enable": false
+  "vetur.format.enable": false,
+  "debug.javascript.usePreview": false
 }
